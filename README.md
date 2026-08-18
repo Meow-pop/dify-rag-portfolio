@@ -14,7 +14,7 @@
 
 - [x] 建立独立作品集仓库
 - [x] 添加环境预检与 Dify 初始化脚本
-- [ ] 启动 Dify 1.16.1
+- [x] 启动并验证 Dify 1.16.1
 - [ ] 配置首个模型供应商
 - [ ] 建立示例知识库
 - [ ] 创建带引用的 RAG 工作流
@@ -57,6 +57,10 @@ scripts/        环境检查与生命周期脚本
 3. 每个功能都附带可复现步骤、验证方式和已知限制。
 4. 先完成小而完整的系统，再扩展 Agent、多模型路由和监控。
 
+## 学习路线
+
+本项目面向 AI Automation / AI 应用开发岗位，能力清单和作品集映射见 [AI Automation 岗位能力路线](docs/job-skill-roadmap.md)。
+
 ## 安全提醒
 
 - 不要把 `.env`、API Key、数据库密码或真实公司资料提交到 GitHub。
@@ -67,4 +71,3 @@ scripts/        环境检查与生命周期脚本
 
 - [Dify](https://github.com/langgenius/dify)
 - [Dify 自托管文档](https://docs.dify.ai/getting-started/install-self-hosted/docker-compose)
-

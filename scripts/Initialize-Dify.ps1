@@ -9,6 +9,11 @@ $runtimeRoot = Join-Path $projectRoot '.runtime'
 $difyRoot = Join-Path $runtimeRoot 'dify'
 
 if (Test-Path -LiteralPath $difyRoot) {
+    $gitMetadata = Join-Path $difyRoot '.git'
+    if (-not (Test-Path -LiteralPath $gitMetadata)) {
+        throw "An incomplete runtime directory exists: $difyRoot. Inspect it before retrying."
+    }
+
     Write-Host "Dify runtime already exists: $difyRoot"
     Write-Host 'No files were overwritten.'
     exit 0
@@ -33,4 +38,3 @@ if (-not (Test-Path -LiteralPath $envExample -PathType Leaf)) {
 Copy-Item -LiteralPath $envExample -Destination $envFile
 Write-Host "Created local Dify configuration: $envFile"
 Write-Host 'Initialization complete. Review the local .env before exposing any service.' -ForegroundColor Green
-
