@@ -32,3 +32,7 @@ This was treated as an initialization delay rather than a configuration defect b
 ## Local-only security boundary
 
 The runtime configuration lives under `.runtime/`, is ignored by Git, and contains a non-empty local `SECRET_KEY`. The current deployment is intended for local development and is not exposed to the public internet.
+
+The tracked Compose override publishes the Dify Web interface and plugin debugging endpoint on `127.0.0.1` only. The unused HTTPS host mapping is removed. This avoids relying solely on Windows Firewall to prevent direct LAN access.
+
+Always use `scripts\Start-Dify.ps1` and `scripts\Stop-Dify.ps1`, because those scripts load both the upstream Compose file and the local security override. Run `scripts\Test-LocalSecurity.ps1` after deployment changes to verify host bindings, the local secret, Git ignore coverage, and HTTP availability.

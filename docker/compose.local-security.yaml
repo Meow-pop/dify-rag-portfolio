@@ -1,0 +1,8 @@
+services:
+  nginx:
+    ports: !override
+      - "127.0.0.1:${EXPOSE_NGINX_PORT:-80}:${NGINX_PORT:-80}"
+
+  plugin_daemon:
+    ports: !override
+      - "127.0.0.1:${EXPOSE_PLUGIN_DEBUGGING_PORT:-5003}:${PLUGIN_DEBUGGING_PORT:-5003}"

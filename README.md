@@ -15,6 +15,7 @@
 - [x] 建立独立作品集仓库
 - [x] 添加环境预检与 Dify 初始化脚本
 - [x] 启动并验证 Dify 1.16.1
+- [x] 将 Web 与插件调试端口限制为仅本机访问
 - [ ] 配置首个模型供应商
 - [ ] 建立示例知识库
 - [ ] 创建带引用的 RAG 工作流
@@ -32,7 +33,13 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\scripts\Start-Dify.ps1
 ```
 
-启动完成后访问：<http://localhost>
+启动完成后访问：<http://127.0.0.1>
+
+验证本地访问边界、密钥配置和 Git 忽略规则：
+
+```powershell
+.\scripts\Test-LocalSecurity.ps1
+```
 
 停止服务：
 
@@ -44,6 +51,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 ```text
 docs/           架构说明、部署记录与技术决策
+docker/         本项目维护的 Compose 安全覆盖配置
 evaluation/     RAG 测试集和评测程序
 sample-data/    可公开提交的演示资料
 scripts/        环境检查与生命周期脚本
@@ -64,7 +72,9 @@ scripts/        环境检查与生命周期脚本
 ## 安全提醒
 
 - 不要把 `.env`、API Key、数据库密码或真实公司资料提交到 GitHub。
-- 当前配置只用于本机学习，不要直接暴露到公网。
+- 启停脚本会把 Web 端口和插件调试端口绑定到 `127.0.0.1`，局域网设备无法直接访问。
+- 不要绕过脚本直接在上游 `.runtime/dify/docker` 目录执行 `docker compose up`，否则会丢失本仓库的端口限制。
+- 当前配置只用于本机学习；不要进行路由器端口映射，也不要直接暴露到公网。
 - 对外部署前需要补充 HTTPS、身份认证、访问控制、备份和安全审计。
 
 ## 上游项目
