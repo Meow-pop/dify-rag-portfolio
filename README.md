@@ -16,8 +16,9 @@
 - [x] 添加环境预检与 Dify 初始化脚本
 - [x] 启动并验证 Dify 1.16.1
 - [x] 将 Web 与插件调试端口限制为仅本机访问
-- [ ] 配置首个模型供应商
-- [ ] 建立示例知识库
+- [x] 配置首个模型供应商（DeepSeek）
+- [x] 配置 Ollama 本地嵌入模型（qwen3-embedding:0.6b）
+- [x] 建立示例知识库并通过召回测试
 - [ ] 创建带引用的 RAG 工作流
 - [ ] 增加自动导入和评测代码
 - [ ] 整理架构图、演示截图和基准报告
@@ -31,6 +32,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\scripts\Test-Prerequisites.ps1
 .\scripts\Initialize-Dify.ps1
 .\scripts\Start-Dify.ps1
+.\scripts\Initialize-Ollama.ps1
 ```
 
 启动完成后访问：<http://127.0.0.1>
@@ -73,6 +75,7 @@ scripts/        环境检查与生命周期脚本
 
 - 不要把 `.env`、API Key、数据库密码或真实公司资料提交到 GitHub。
 - 启停脚本会把 Web 端口和插件调试端口绑定到 `127.0.0.1`，局域网设备无法直接访问。
+- Ollama 不发布主机端口，只允许同一 Docker Compose 网络内的 Dify 服务访问。
 - 不要绕过脚本直接在上游 `.runtime/dify/docker` 目录执行 `docker compose up`，否则会丢失本仓库的端口限制。
 - 当前配置只用于本机学习；不要进行路由器端口映射，也不要直接暴露到公网。
 - 对外部署前需要补充 HTTPS、身份认证、访问控制、备份和安全审计。

@@ -28,6 +28,25 @@ At idle shortly after first startup, the Dify containers used approximately 2.5 
 
 This leaves enough room for workflow and RAG development, but a local LLM should be tested separately and with a small model because Dify, another existing container stack, and the model would otherwise compete for memory.
 
+## Local embedding service
+
+Ollama runs as an additional service in the same Docker Compose network as
+Dify. It stores downloaded models in the named `ollama_data` volume and does
+not publish port 11434 to Windows, the LAN, or the public internet. Dify reaches
+it through the internal address `http://ollama:11434`.
+
+The initial embedding model is `qwen3-embedding:0.6b`. Generation still uses
+the configured DeepSeek API; only document and query vectorization happens
+locally. This hybrid layout keeps the first portfolio version responsive while
+demonstrating a private, self-hosted embedding path.
+
+In Dify, the Ollama provider uses the Docker-internal base URL above and the
+model type `Text Embedding`. The sample knowledge base is named
+`星桥优选电商知识库` and contains the four Markdown files under
+`sample-data/xingqiao-commerce/`. Its first retrieval check used the query
+`新疆订单购买恒温杯，总金额199元，需要多少运费？`; the top results correctly
+retrieved the 20-yuan shipping rule from both the FAQ and product manual.
+
 ## First-start observation
 
 PostgreSQL was temporarily reported as unhealthy while its initial data directory was being created and synchronized. Dependent containers retried automatically. Logs later showed that PostgreSQL accepted connections, the plugin database was created, migrations completed, and the application became healthy.

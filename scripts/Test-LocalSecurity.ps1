@@ -81,6 +81,34 @@ try {
         }
         Write-Host "[PASS] $service host ports are loopback-only." -ForegroundColor Green
     }
+
+    $ollamaContainerId = docker compose -f $composeFile -f $securityOverride ps -q ollama
+    if ($LASTEXITCODE -ne 0 -or -not $ollamaContainerId) {
+        throw 'The ollama container is not running.'
+    }
+
+    $ollamaBindingsJson = docker inspect --format '{{json .HostConfig.PortBindings}}' $ollamaContainerId
+    if ($LASTEXITCODE -ne 0 -or -not $ollamaBindingsJson) {
+        throw 'Unable to inspect Ollama host port bindings.'
+    }
+
+    $ollamaBindings = $ollamaBindingsJson | ConvertFrom-Json
+    if (@($ollamaBindings.PSObject.Properties).Count -ne 0) {
+        throw "Ollama must not publish host ports: $(@($ollamaBindings.PSObject.Properties).Name -join ', ')."
+    }
+    Write-Host '[PASS] Ollama does not publish a host port.' -ForegroundColor Green
+
+    docker compose -f $composeFile -f $securityOverride exec -T ollama ollama show qwen3-embedding:0.6b *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw 'The qwen3-embedding:0.6b model is not available in Ollama.'
+    }
+    Write-Host '[PASS] The local embedding model is available.' -ForegroundColor Green
+
+    docker compose -f $composeFile -f $securityOverride exec -T api python -c "import urllib.request; urllib.request.urlopen('http://ollama:11434/api/tags', timeout=5).read()" *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Dify API cannot reach Ollama on the internal Docker network.'
+    }
+    Write-Host '[PASS] Dify can reach Ollama on the internal Docker network.' -ForegroundColor Green
 }
 finally {
     Pop-Location
