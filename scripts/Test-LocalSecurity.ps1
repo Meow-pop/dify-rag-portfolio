@@ -14,7 +14,7 @@ foreach ($requiredFile in @($composeFile, $securityOverride, $envFile)) {
     }
 }
 
-docker info *> $null
+docker version --format '{{.Server.Version}}' *> $null
 if ($LASTEXITCODE -ne 0) {
     throw 'Docker Engine is not running.'
 }
@@ -24,6 +24,12 @@ if (-not $secretLine -or $secretLine.Matches[0].Groups[1].Value.Length -lt 32) {
     throw 'SECRET_KEY is missing or too short in the local Dify .env file.'
 }
 Write-Host '[PASS] A non-empty local SECRET_KEY is configured.' -ForegroundColor Green
+
+$socketUrlLine = Select-String -LiteralPath $envFile -Pattern '^NEXT_PUBLIC_SOCKET_URL=(.+)$' | Select-Object -First 1
+if (-not $socketUrlLine -or $socketUrlLine.Matches[0].Groups[1].Value -ne 'ws://127.0.0.1') {
+    throw 'NEXT_PUBLIC_SOCKET_URL must be ws://127.0.0.1 to match the local console host.'
+}
+Write-Host '[PASS] The WebSocket URL matches the loopback console host.' -ForegroundColor Green
 
 Push-Location $projectRoot
 try {

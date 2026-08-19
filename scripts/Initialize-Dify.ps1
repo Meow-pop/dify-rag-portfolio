@@ -36,5 +36,8 @@ if (-not (Test-Path -LiteralPath $envExample -PathType Leaf)) {
 }
 
 Copy-Item -LiteralPath $envExample -Destination $envFile
+$envContent = Get-Content -LiteralPath $envFile -Raw
+$envContent = $envContent -replace '(?m)^NEXT_PUBLIC_SOCKET_URL=.*$', 'NEXT_PUBLIC_SOCKET_URL=ws://127.0.0.1'
+Set-Content -LiteralPath $envFile -Value $envContent -NoNewline
 Write-Host "Created local Dify configuration: $envFile"
 Write-Host 'Initialization complete. Review the local .env before exposing any service.' -ForegroundColor Green

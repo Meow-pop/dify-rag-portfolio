@@ -15,7 +15,12 @@
 - Dify API healthy
 - local agent sandbox healthy
 - plugin database migration completed
-- `http://localhost` returned HTTP 200
+- `http://127.0.0.1` returned HTTP 200
+
+The generated runtime sets `NEXT_PUBLIC_SOCKET_URL=ws://127.0.0.1` so the
+workflow collaboration WebSocket uses the same host as the console. Keeping
+these hosts identical is required for the browser to send the local login
+cookie and for workflow edits to auto-save.
 
 ## Initial resource snapshot
 
