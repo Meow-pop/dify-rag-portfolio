@@ -1,0 +1,110 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: #162033;
+  background: #f4f7fb;
+}
+
+body {
+  width: 360px;
+  margin: 0;
+}
+
+main {
+  padding: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 5px;
+  color: #3569e8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+h1 {
+  margin: 0;
+  font-size: 21px;
+}
+
+.hint,
+.boundary {
+  color: #5c677a;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+button {
+  min-height: 38px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #fff;
+  color: #162033;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.primary {
+  width: 100%;
+  border-color: #3569e8;
+  background: #3569e8;
+  color: #fff;
+}
+
+.status {
+  min-height: 20px;
+  margin: 10px 0;
+  font-size: 12px;
+}
+
+.status.error {
+  color: #b42318;
+}
+
+.status.success {
+  color: #08783f;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.summary div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 10px;
+  border-radius: 9px;
+  background: #eaf0ff;
+}
+
+.summary strong {
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary span {
+  margin-top: 3px;
+  color: #667085;
+  font-size: 11px;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.boundary {
+  margin-bottom: 0;
+}

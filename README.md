@@ -20,6 +20,8 @@
 - [x] 配置 Ollama 本地嵌入模型（qwen3-embedding:0.6b）
 - [x] 建立示例知识库并通过召回测试
 - [ ] 创建带引用的 RAG 工作流
+- [x] 添加淘宝当前页市场调研采集器（浏览器扩展 MVP）
+- [ ] 建立市场调研清洗与分析工作流
 - [ ] 增加自动导入和评测代码
 - [ ] 整理架构图、演示截图和基准报告
 
@@ -57,8 +59,11 @@ docker/         本项目维护的 Compose 安全覆盖配置
 evaluation/     RAG 测试集和评测程序
 sample-data/    可公开提交的演示资料
 scripts/        环境检查与生命周期脚本
+market-research/ 市场调研采集工具
 .runtime/       本机运行文件，不提交到 GitHub
 ```
+
+淘宝当前页采集器的安装、数据格式和安全边界见 [市场调研采集器说明](docs/market-research-collector.md)。
 
 ## 设计原则
 
