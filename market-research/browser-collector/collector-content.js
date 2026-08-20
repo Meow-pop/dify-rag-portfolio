@@ -20,6 +20,33 @@
     return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
   }
 
+  function discoverSearchRoots(root, roots, visited) {
+    if (!root || visited.has(root)) {
+      return;
+    }
+    visited.add(root);
+    roots.push(root);
+    for (const element of root.querySelectorAll?.("*") || []) {
+      if (element.shadowRoot) {
+        discoverSearchRoots(element.shadowRoot, roots, visited);
+      }
+    }
+  }
+
+  function getSearchRoots() {
+    const roots = [];
+    discoverSearchRoots(document, roots, new Set());
+    return roots;
+  }
+
+  function queryAllFromRoots(roots, selector) {
+    const results = [];
+    for (const root of roots) {
+      results.push(...root.querySelectorAll(selector));
+    }
+    return results;
+  }
+
   function detectAccessBarrier() {
     const text = utils.normalizeWhitespace(document.body?.innerText).slice(0, 12000);
     const patterns = [
@@ -246,19 +273,26 @@
     return link ? utils.canonicalizeProductUrl(link.href, location.href) : null;
   }
 
-  function findPriceElements() {
-    return Array.from(document.querySelectorAll("body *")).filter((element) => {
-      if (!isRendered(element) || element.children.length > 2) {
+  function findPriceElements(roots) {
+    return queryAllFromRoots(roots, "*").filter((element) => {
+      if (!isRendered(element) || element.children.length > 6) {
         return false;
       }
       const text = utils.normalizeWhitespace(element.innerText || element.textContent);
-      return text.length <= 40 && /[¥￥]\s*[0-9]{1,7}(?:\.[0-9]{1,2})?/.test(text);
+      if (!text || text.length > 40) {
+        return false;
+      }
+      const hasCurrencyPrice = /[¥￥]\s*[0-9]{1,7}(?:\.[0-9]{1,2})?/.test(text);
+      const hasPriceClass = /price/i.test(String(element.className || ""));
+      const hasNumericPrice = /^[¥￥]?\s*[0-9]{1,7}(?:\.[0-9]{1,2})?(?:\s*元|\s*起)?$/.test(text);
+      return hasCurrencyPrice || (hasPriceClass && hasNumericPrice);
     });
   }
 
   function candidateCards() {
     const candidates = [];
-    const matchedLinks = Array.from(document.querySelectorAll(PRODUCT_LINK_SELECTOR)).filter(isRendered);
+    const roots = getSearchRoots();
+    const matchedLinks = queryAllFromRoots(roots, PRODUCT_LINK_SELECTOR).filter(isRendered);
     for (const link of matchedLinks) {
       const card = findCard(link);
       if (card) {
@@ -266,7 +300,7 @@
       }
     }
 
-    const priceElements = findPriceElements();
+    const priceElements = findPriceElements(roots);
     for (const priceElement of priceElements) {
       const card = findCardFromPrice(priceElement);
       if (card) {
@@ -274,7 +308,7 @@
       }
     }
 
-    return { candidates, matchedLinks, priceElements };
+    return { candidates, matchedLinks, priceElements, roots };
   }
 
   function collect() {
@@ -339,7 +373,8 @@
         diagnostics: {
           matched_product_links: discovery.matchedLinks.length,
           matched_price_elements: discovery.priceElements.length,
-          candidate_cards: discovery.candidates.length
+          candidate_cards: discovery.candidates.length,
+          open_shadow_roots: Math.max(0, discovery.roots.length - 1)
         },
         items
       }

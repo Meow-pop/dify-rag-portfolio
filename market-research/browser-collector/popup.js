@@ -32,6 +32,76 @@
     return `taobao-${keyword}-${date}.${extension}`;
   }
 
+  function itemIdentity(item) {
+    return item.product_url || [item.title, item.price_value, item.shop, item.image_url].join("|");
+  }
+
+  async function collectFromAllFrames(tab) {
+    const frames = await chrome.webNavigation.getAllFrames({ tabId: tab.id });
+    const responses = [];
+    for (const frame of frames || [{ frameId: 0 }]) {
+      try {
+        const response = await chrome.tabs.sendMessage(
+          tab.id,
+          { type: "COLLECT_VISIBLE_TAOBAO_PRODUCTS" },
+          { frameId: frame.frameId }
+        );
+        if (response) {
+          responses.push(response);
+        }
+      } catch (_error) {
+        // Third-party frames may not allow this extension's content script.
+      }
+    }
+
+    const successful = responses.filter((response) => response.ok && response.data);
+    if (successful.length === 0) {
+      const blocked = responses.find((response) => response?.barrier);
+      return blocked || responses[0] || { ok: false, error: "页面没有返回采集结果，请刷新后重试。" };
+    }
+
+    const preferred = successful.find((response) => response.data.query) || successful[0];
+    const items = [];
+    const seen = new Set();
+    const diagnostics = {
+      scanned_frames: successful.length,
+      matched_product_links: 0,
+      matched_price_elements: 0,
+      candidate_cards: 0,
+      open_shadow_roots: 0
+    };
+
+    for (const response of successful) {
+      const frameDiagnostics = response.data.diagnostics || {};
+      for (const key of ["matched_product_links", "matched_price_elements", "candidate_cards", "open_shadow_roots"]) {
+        diagnostics[key] += Number(frameDiagnostics[key] || 0);
+      }
+      for (const item of response.data.items || []) {
+        const identity = itemIdentity(item);
+        if (!identity || seen.has(identity)) {
+          continue;
+        }
+        seen.add(identity);
+        items.push({ ...item, rank: items.length + 1 });
+        if (items.length >= 100) {
+          break;
+        }
+      }
+    }
+
+    return {
+      ok: true,
+      data: {
+        ...preferred.data,
+        source_url: tab.url,
+        page_title: tab.title || preferred.data.page_title,
+        item_count: items.length,
+        diagnostics,
+        items
+      }
+    };
+  }
+
   collectButton.addEventListener("click", async () => {
     collectButton.disabled = true;
     jsonButton.disabled = true;
@@ -46,9 +116,7 @@
         throw new Error("请先打开淘宝或天猫页面。");
       }
 
-      const response = await chrome.tabs.sendMessage(tab.id, {
-        type: "COLLECT_VISIBLE_TAOBAO_PRODUCTS"
-      });
+      const response = await collectFromAllFrames(tab);
       if (!response?.ok) {
         throw new Error(response?.error || "页面没有返回采集结果，请刷新页面后重试。");
       }
@@ -61,7 +129,7 @@
       if (latestData.item_count === 0) {
         const diagnostics = latestData.diagnostics || {};
         setStatus(
-          `未识别到商品（链接 ${diagnostics.matched_product_links || 0}，价格 ${diagnostics.matched_price_elements || 0}，卡片 ${diagnostics.candidate_cards || 0}）。`,
+          `未识别到商品（框架 ${diagnostics.scanned_frames || 0}，阴影层 ${diagnostics.open_shadow_roots || 0}，链接 ${diagnostics.matched_product_links || 0}，价格 ${diagnostics.matched_price_elements || 0}，卡片 ${diagnostics.candidate_cards || 0}）。`,
           "error"
         );
         return;
