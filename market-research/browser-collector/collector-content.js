@@ -152,11 +152,32 @@
     return "";
   }
 
-  function extractPrice(card) {
+  function elementPriceTexts(element) {
+    if (!element) {
+      return [];
+    }
+    const values = [
+      element.innerText,
+      element.textContent,
+      element.getAttribute?.("aria-label"),
+      element.parentElement?.innerText
+    ];
+    try {
+      const before = getComputedStyle(element, "::before").content.replace(/^['"]|['"]$/g, "");
+      const after = getComputedStyle(element, "::after").content.replace(/^['"]|['"]$/g, "");
+      values.push(`${before}${element.textContent || ""}${after}`);
+    } catch (_error) {
+      // Pseudo-element content is optional diagnostic input.
+    }
+    return [...new Set(values.map(utils.normalizeWhitespace).filter(Boolean))];
+  }
+
+  function extractPrice(card, priceElement) {
     const candidates = [];
+    candidates.push(...elementPriceTexts(priceElement));
     for (const element of card.querySelectorAll('[class*="price" i]')) {
       if (isRendered(element)) {
-        candidates.push(utils.normalizeWhitespace(element.innerText || element.textContent));
+        candidates.push(...elementPriceTexts(element));
       }
     }
     candidates.push(utils.normalizeWhitespace(card.innerText));
@@ -165,6 +186,10 @@
       const match = text.match(/[¥￥]\s*[0-9]{1,7}(?:\.[0-9]{1,2})?/);
       if (match) {
         return { price_text: match[0], price_value: utils.parsePrice(match[0]) };
+      }
+      const decimalMatch = text.match(/(?:^|\s)([0-9]{1,7}\.[0-9]{1,2})(?:\s|$)/);
+      if (decimalMatch) {
+        return { price_text: decimalMatch[1], price_value: Number(decimalMatch[1]) };
       }
       const parsed = utils.parsePrice(text);
       if (parsed !== null) {
@@ -278,14 +303,17 @@
       if (!isRendered(element) || element.children.length > 6) {
         return false;
       }
-      const text = utils.normalizeWhitespace(element.innerText || element.textContent);
-      if (!text || text.length > 40) {
+      const texts = elementPriceTexts(element).filter((text) => text.length <= 80);
+      if (texts.length === 0) {
         return false;
       }
-      const hasCurrencyPrice = /[¥￥]\s*[0-9]{1,7}(?:\.[0-9]{1,2})?/.test(text);
       const hasPriceClass = /price/i.test(String(element.className || ""));
-      const hasNumericPrice = /^[¥￥]?\s*[0-9]{1,7}(?:\.[0-9]{1,2})?(?:\s*元|\s*起)?$/.test(text);
-      return hasCurrencyPrice || (hasPriceClass && hasNumericPrice);
+      return texts.some((text) => {
+        const hasCurrencyPrice = /[¥￥]\s*[0-9]{1,7}(?:\.[0-9]{1,2})?/.test(text);
+        const hasNumericPrice = /^[¥￥]?\s*[0-9]{1,7}(?:\.[0-9]{1,2})?(?:\s*元|\s*起)?$/.test(text);
+        const hasPlainDecimalPrice = /^[0-9]{1,7}\.[0-9]{1,2}$/.test(text);
+        return hasCurrencyPrice || hasPlainDecimalPrice || (hasPriceClass && hasNumericPrice);
+      });
     });
   }
 
@@ -304,7 +332,7 @@
     for (const priceElement of priceElements) {
       const card = findCardFromPrice(priceElement);
       if (card) {
-        candidates.push({ card, link: findBestLink(card) });
+        candidates.push({ card, link: findBestLink(card), priceElement });
       }
     }
 
@@ -333,7 +361,7 @@
         continue;
       }
 
-      const price = extractPrice(card);
+      const price = extractPrice(card, candidate.priceElement);
       const shop = textFromFirst(card, ['[class*="shop" i]', '[class*="seller" i]', 'a[href*="shop"]'], 80);
       const imageUrl = extractImage(card);
       const identity = productUrl || [title, price.price_value, shop, imageUrl].join("|");
