@@ -382,6 +382,27 @@
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === "COLLECT_TAOBAO_FRAME_BROADCAST") {
+      let result;
+      try {
+        result = collect();
+      } catch (error) {
+        result = { ok: false, error: error instanceof Error ? error.message : String(error) };
+      }
+      try {
+        const pending = chrome.runtime.sendMessage({
+          type: "TAOBAO_FRAME_COLLECTION_RESULT",
+          request_id: message.request_id,
+          result
+        });
+        pending?.catch?.(() => {});
+      } catch (_error) {
+        // The popup may have closed before the frame returned its result.
+      }
+      sendResponse({ ok: true });
+      return false;
+    }
+
     if (message?.type !== "COLLECT_VISIBLE_TAOBAO_PRODUCTS") {
       return false;
     }

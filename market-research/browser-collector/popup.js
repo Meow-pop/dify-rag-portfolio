@@ -37,21 +37,25 @@
   }
 
   async function collectFromAllFrames(tab) {
-    const frames = await chrome.webNavigation.getAllFrames({ tabId: tab.id });
+    const requestId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
     const responses = [];
-    for (const frame of frames || [{ frameId: 0 }]) {
-      try {
-        const response = await chrome.tabs.sendMessage(
-          tab.id,
-          { type: "COLLECT_VISIBLE_TAOBAO_PRODUCTS" },
-          { frameId: frame.frameId }
-        );
-        if (response) {
-          responses.push(response);
-        }
-      } catch (_error) {
-        // Third-party frames may not allow this extension's content script.
+
+    const listener = (message) => {
+      if (message?.type === "TAOBAO_FRAME_COLLECTION_RESULT" && message.request_id === requestId && message.result) {
+        responses.push(message.result);
       }
+    };
+    chrome.runtime.onMessage.addListener(listener);
+
+    try {
+      const broadcast = chrome.tabs.sendMessage(tab.id, {
+        type: "COLLECT_TAOBAO_FRAME_BROADCAST",
+        request_id: requestId
+      });
+      broadcast?.catch?.(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 1600));
+    } finally {
+      chrome.runtime.onMessage.removeListener(listener);
     }
 
     const successful = responses.filter((response) => response.ok && response.data);

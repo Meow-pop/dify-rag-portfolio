@@ -1,11 +1,10 @@
 {
   "manifest_version": 3,
   "name": "星桥市场调研采集器",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "由用户触发，采集淘宝或天猫当前页面已加载的公开商品信息。",
   "permissions": [
-    "activeTab",
-    "webNavigation"
+    "activeTab"
   ],
   "action": {
     "default_title": "采集淘宝当前页",
@@ -22,7 +21,9 @@
         "collector-content.js"
       ],
       "run_at": "document_idle",
-      "all_frames": true
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true
     }
   ]
 }
