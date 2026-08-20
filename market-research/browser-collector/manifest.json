@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "星桥市场调研采集器",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "由用户触发，采集淘宝或天猫当前页面已加载的公开商品信息。",
   "permissions": [
     "activeTab"

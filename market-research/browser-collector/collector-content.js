@@ -6,7 +6,9 @@
     'a[href*="item.taobao.com/item.htm"]',
     'a[href*="detail.tmall.com/item.htm"]',
     'a[href*="item.taobao.com/"]',
-    'a[href*="detail.tmall.com/"]'
+    'a[href*="detail.tmall.com/"]',
+    'a[href*="click.simba.taobao.com/"]',
+    'a[href*="uland.taobao.com/"]'
   ].join(",");
 
   function isRendered(element) {
@@ -143,6 +145,67 @@
     return utils.normalizeWhitespace(input?.value);
   }
 
+  function normalizeProductId(value) {
+    const match = String(value || "").match(/(?:^|\D)([0-9]{5,20})(?:\D|$)/);
+    return match ? match[1] : "";
+  }
+
+  function extractProductId(link, card) {
+    const parameterNames = ["id", "itemId", "item_id", "auctionId", "auction_id", "nid"];
+    try {
+      const url = new URL(link.href, location.href);
+      for (const name of parameterNames) {
+        const id = normalizeProductId(url.searchParams.get(name));
+        if (id) {
+          return id;
+        }
+      }
+
+      for (const name of ["url", "redirect", "target"]) {
+        const nestedValue = url.searchParams.get(name);
+        if (!nestedValue) {
+          continue;
+        }
+        try {
+          const nestedUrl = new URL(nestedValue, location.href);
+          for (const parameterName of parameterNames) {
+            const id = normalizeProductId(nestedUrl.searchParams.get(parameterName));
+            if (id) {
+              return id;
+            }
+          }
+        } catch (_error) {
+          // Some redirect parameters are opaque tokens rather than URLs.
+        }
+      }
+    } catch (_error) {
+      // Attribute-based extraction below still has a chance to find the ID.
+    }
+
+    const attributeNames = ["data-nid", "data-itemid", "data-item-id", "data-auctionid", "data-id"];
+    const candidates = [link, card, ...card.querySelectorAll(attributeNames.map((name) => `[${name}]`).join(","))];
+    for (const candidate of candidates) {
+      for (const attributeName of attributeNames) {
+        const id = normalizeProductId(candidate.getAttribute?.(attributeName));
+        if (id) {
+          return id;
+        }
+      }
+    }
+
+    const markup = card.outerHTML.slice(0, 100000);
+    const embeddedMatch = markup.match(/(?:itemId|item_id|auctionId|auction_id|nid)[^0-9]{0,20}([0-9]{5,20})/i);
+    return embeddedMatch ? embeddedMatch[1] : "";
+  }
+
+  function resolveProductUrl(link, card) {
+    const productId = extractProductId(link, card);
+    if (productId) {
+      return `https://item.taobao.com/item.htm?id=${productId}`;
+    }
+    return utils.canonicalizeProductUrl(link.href, location.href);
+  }
+
   function collect() {
     const hostname = location.hostname.toLowerCase();
     if (!hostname.endsWith("taobao.com") && !hostname.endsWith("tmall.com")) {
@@ -158,12 +221,12 @@
     const items = [];
     const links = Array.from(document.querySelectorAll(PRODUCT_LINK_SELECTOR)).filter(isRendered);
     for (const link of links) {
-      const productUrl = utils.canonicalizeProductUrl(link.href, location.href);
+      const card = findCard(link);
+      const productUrl = resolveProductUrl(link, card);
       if (!productUrl || seen.has(productUrl)) {
         continue;
       }
 
-      const card = findCard(link);
       const title = extractTitle(link, card);
       if (!title) {
         continue;

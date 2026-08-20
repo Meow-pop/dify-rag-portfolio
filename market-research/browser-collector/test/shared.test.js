@@ -15,6 +15,12 @@ assert.equal(
   "https://item.taobao.com/item.htm?id=12345"
 );
 assert.equal(utils.canonicalizeProductUrl("https://example.com/item?id=1"), null);
+assert.equal(
+  utils.canonicalizeProductUrl(
+    "https://click.simba.taobao.com/cc_im?p=%B1%A3%CE%C2%B1%AD&e=opaque#tracking"
+  ),
+  "https://click.simba.taobao.com/cc_im?p=%B1%A3%CE%C2%B1%AD&e=opaque"
+);
 
 const csv = utils.toCsv([
   {

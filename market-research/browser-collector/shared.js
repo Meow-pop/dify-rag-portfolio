@@ -21,6 +21,11 @@
         return null;
       }
 
+      if (hostname === "click.simba.taobao.com" || hostname === "uland.taobao.com") {
+        url.hash = "";
+        return url.toString();
+      }
+
       const id = url.searchParams.get("id");
       const canonical = new URL(url.origin + url.pathname);
       if (id) {
