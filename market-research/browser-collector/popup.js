@@ -40,6 +40,44 @@
     const requestId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
     const responses = [];
 
+    try {
+      const frameResults = await chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: true },
+        func: () => globalThis.StarMarketTaobaoCollector?.collect?.() || null
+      });
+      for (const frameResult of frameResults || []) {
+        if (frameResult.result) {
+          responses.push(frameResult.result);
+        }
+      }
+    } catch (_error) {
+      // Older Edge builds may require the message-based fallback below.
+    }
+
+    if (responses.length === 0) {
+      await collectByBroadcast(tab, requestId, responses);
+    }
+
+    if (responses.length === 0) {
+      try {
+        const mainFrameResponse = await chrome.tabs.sendMessage(
+          tab.id,
+          { type: "COLLECT_VISIBLE_TAOBAO_PRODUCTS" },
+          { frameId: 0 }
+        );
+        if (mainFrameResponse) {
+          responses.push(mainFrameResponse);
+        }
+      } catch (_error) {
+        // The caller will receive the standard refresh guidance below.
+      }
+    }
+
+    return mergeFrameResponses(tab, responses);
+  }
+
+  async function collectByBroadcast(tab, requestId, responses) {
+
     const listener = (message) => {
       if (message?.type === "TAOBAO_FRAME_COLLECTION_RESULT" && message.request_id === requestId && message.result) {
         responses.push(message.result);
@@ -57,7 +95,9 @@
     } finally {
       chrome.runtime.onMessage.removeListener(listener);
     }
+  }
 
+  function mergeFrameResponses(tab, responses) {
     const successful = responses.filter((response) => response.ok && response.data);
     if (successful.length === 0) {
       const blocked = responses.find((response) => response?.barrier);

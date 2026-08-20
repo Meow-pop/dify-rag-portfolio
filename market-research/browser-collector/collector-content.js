@@ -381,6 +381,8 @@
     };
   }
 
+  globalThis.StarMarketTaobaoCollector = Object.freeze({ collect });
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "COLLECT_TAOBAO_FRAME_BROADCAST") {
       let result;
