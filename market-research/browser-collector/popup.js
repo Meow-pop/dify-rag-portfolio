@@ -59,7 +59,11 @@
       summary.hidden = false;
 
       if (latestData.item_count === 0) {
-        setStatus("未识别到商品。请滚动加载商品；若淘宝刚改版，需要更新适配器。", "error");
+        const diagnostics = latestData.diagnostics || {};
+        setStatus(
+          `未识别到商品（链接 ${diagnostics.matched_product_links || 0}，价格 ${diagnostics.matched_price_elements || 0}，卡片 ${diagnostics.candidate_cards || 0}）。`,
+          "error"
+        );
         return;
       }
 

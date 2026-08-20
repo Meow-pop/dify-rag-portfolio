@@ -53,6 +53,43 @@
     return fallback || link;
   }
 
+  function findCardFromPrice(priceElement) {
+    let current = priceElement;
+    let fallback = null;
+    for (let depth = 0; current && depth < 10; depth += 1, current = current.parentElement) {
+      if (!isRendered(current)) {
+        continue;
+      }
+      const textLength = utils.normalizeWhitespace(current.innerText).length;
+      const imageCount = current.querySelectorAll?.("img").length || 0;
+      if (textLength >= 15 && textLength <= 1200 && imageCount >= 1) {
+        fallback = current;
+        if (textLength <= 700 && imageCount <= 4) {
+          return current;
+        }
+      }
+    }
+    return fallback;
+  }
+
+  function findBestLink(card) {
+    if (!card) {
+      return null;
+    }
+    const preferred = card.querySelector(PRODUCT_LINK_SELECTOR);
+    if (preferred) {
+      return preferred;
+    }
+    return Array.from(card.querySelectorAll("a[href]")).find((link) => {
+      try {
+        const hostname = new URL(link.href, location.href).hostname.toLowerCase();
+        return hostname.endsWith("taobao.com") || hostname.endsWith("tmall.com");
+      } catch (_error) {
+        return false;
+      }
+    }) || null;
+  }
+
   function textFromFirst(card, selectors, maxLength) {
     for (const selector of selectors) {
       const elements = card.querySelectorAll(selector);
@@ -71,11 +108,12 @@
 
   function extractTitle(link, card) {
     const candidates = [
-      link.getAttribute("title"),
-      link.getAttribute("aria-label"),
+      link?.getAttribute("title"),
+      link?.getAttribute("aria-label"),
       card.querySelector('img[alt]')?.getAttribute("alt"),
-      textFromFirst(card, ['[class*="title" i]', '[class*="name" i]'], 180),
-      link.innerText
+      textFromFirst(card, ['[class*="title" i]', '[class*="name" i]', "h2", "h3"], 180),
+      link?.innerText,
+      ...String(card.innerText || "").split(/\r?\n/)
     ];
 
     for (const candidate of candidates) {
@@ -152,38 +190,40 @@
 
   function extractProductId(link, card) {
     const parameterNames = ["id", "itemId", "item_id", "auctionId", "auction_id", "nid"];
-    try {
-      const url = new URL(link.href, location.href);
-      for (const name of parameterNames) {
-        const id = normalizeProductId(url.searchParams.get(name));
-        if (id) {
-          return id;
-        }
-      }
-
-      for (const name of ["url", "redirect", "target"]) {
-        const nestedValue = url.searchParams.get(name);
-        if (!nestedValue) {
-          continue;
-        }
-        try {
-          const nestedUrl = new URL(nestedValue, location.href);
-          for (const parameterName of parameterNames) {
-            const id = normalizeProductId(nestedUrl.searchParams.get(parameterName));
-            if (id) {
-              return id;
-            }
+    if (link) {
+      try {
+        const url = new URL(link.href, location.href);
+        for (const name of parameterNames) {
+          const id = normalizeProductId(url.searchParams.get(name));
+          if (id) {
+            return id;
           }
-        } catch (_error) {
-          // Some redirect parameters are opaque tokens rather than URLs.
         }
+
+        for (const name of ["url", "redirect", "target"]) {
+          const nestedValue = url.searchParams.get(name);
+          if (!nestedValue) {
+            continue;
+          }
+          try {
+            const nestedUrl = new URL(nestedValue, location.href);
+            for (const parameterName of parameterNames) {
+              const id = normalizeProductId(nestedUrl.searchParams.get(parameterName));
+              if (id) {
+                return id;
+              }
+            }
+          } catch (_error) {
+            // Some redirect parameters are opaque tokens rather than URLs.
+          }
+        }
+      } catch (_error) {
+        // Attribute-based extraction below still has a chance to find the ID.
       }
-    } catch (_error) {
-      // Attribute-based extraction below still has a chance to find the ID.
     }
 
     const attributeNames = ["data-nid", "data-itemid", "data-item-id", "data-auctionid", "data-id"];
-    const candidates = [link, card, ...card.querySelectorAll(attributeNames.map((name) => `[${name}]`).join(","))];
+    const candidates = [link, card, ...card.querySelectorAll(attributeNames.map((name) => `[${name}]`).join(","))].filter(Boolean);
     for (const candidate of candidates) {
       for (const attributeName of attributeNames) {
         const id = normalizeProductId(candidate.getAttribute?.(attributeName));
@@ -203,7 +243,38 @@
     if (productId) {
       return `https://item.taobao.com/item.htm?id=${productId}`;
     }
-    return utils.canonicalizeProductUrl(link.href, location.href);
+    return link ? utils.canonicalizeProductUrl(link.href, location.href) : null;
+  }
+
+  function findPriceElements() {
+    return Array.from(document.querySelectorAll("body *")).filter((element) => {
+      if (!isRendered(element) || element.children.length > 2) {
+        return false;
+      }
+      const text = utils.normalizeWhitespace(element.innerText || element.textContent);
+      return text.length <= 40 && /[¥￥]\s*[0-9]{1,7}(?:\.[0-9]{1,2})?/.test(text);
+    });
+  }
+
+  function candidateCards() {
+    const candidates = [];
+    const matchedLinks = Array.from(document.querySelectorAll(PRODUCT_LINK_SELECTOR)).filter(isRendered);
+    for (const link of matchedLinks) {
+      const card = findCard(link);
+      if (card) {
+        candidates.push({ card, link });
+      }
+    }
+
+    const priceElements = findPriceElements();
+    for (const priceElement of priceElements) {
+      const card = findCardFromPrice(priceElement);
+      if (card) {
+        candidates.push({ card, link: findBestLink(card) });
+      }
+    }
+
+    return { candidates, matchedLinks, priceElements };
   }
 
   function collect() {
@@ -219,32 +290,35 @@
 
     const seen = new Set();
     const items = [];
-    const links = Array.from(document.querySelectorAll(PRODUCT_LINK_SELECTOR)).filter(isRendered);
-    for (const link of links) {
-      const card = findCard(link);
+    const discovery = candidateCards();
+    for (const candidate of discovery.candidates) {
+      const { card, link } = candidate;
       const productUrl = resolveProductUrl(link, card);
-      if (!productUrl || seen.has(productUrl)) {
-        continue;
-      }
-
       const title = extractTitle(link, card);
       if (!title) {
         continue;
       }
 
       const price = extractPrice(card);
+      const shop = textFromFirst(card, ['[class*="shop" i]', '[class*="seller" i]', 'a[href*="shop"]'], 80);
+      const imageUrl = extractImage(card);
+      const identity = productUrl || [title, price.price_value, shop, imageUrl].join("|");
+      if (!identity || seen.has(identity)) {
+        continue;
+      }
+
       items.push({
         rank: items.length + 1,
         title,
         price_text: price.price_text,
         price_value: price.price_value,
-        shop: textFromFirst(card, ['[class*="shop" i]', '[class*="seller" i]', 'a[href*="shop"]'], 80),
+        shop,
         sales_text: extractSales(card),
         location: textFromFirst(card, ['[class*="location" i]', '[class*="area" i]'], 40),
-        product_url: productUrl,
-        image_url: extractImage(card)
+        product_url: productUrl || "",
+        image_url: imageUrl
       });
-      seen.add(productUrl);
+      seen.add(identity);
 
       if (items.length >= 100) {
         break;
@@ -262,6 +336,11 @@
         captured_at: new Date().toISOString(),
         collection_mode: "user_triggered_loaded_dom",
         item_count: items.length,
+        diagnostics: {
+          matched_product_links: discovery.matchedLinks.length,
+          matched_price_elements: discovery.priceElements.length,
+          candidate_cards: discovery.candidates.length
+        },
         items
       }
     };
